@@ -432,34 +432,139 @@ _G.VixNoclip = false
 _G.VixAutoFarm = false
 
 -- ============================================
--- NOCLIP V3 (DO VIX-GOBBY)
+-- NOCLIP V3 (DO VIX-GOBBY) - ULTIMATE NOCLIP
 -- ============================================
 local NoclipV3 = {}
 NoclipV3.Enabled = false
-NoclipV3.Connection = nil
+NoclipV3.Connections = {}
 
+-- Método 1: Stepped Noclip
+function NoclipV3:SteppedNoclip()
+    if self.Connections.Stepped then return end
+    
+    self.Connections.Stepped = RunService.Stepped:Connect(function()
+        if not self.Enabled then return end
+        
+        local character = player.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+-- Método 2: Heartbeat Noclip
+function NoclipV3:HeartbeatNoclip()
+    if self.Connections.Heartbeat then return end
+    
+    self.Connections.Heartbeat = RunService.Heartbeat:Connect(function()
+        if not self.Enabled then return end
+        
+        local character = player.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+-- Método 3: RenderStepped Noclip (mais rápido)
+function NoclipV3:RenderSteppedNoclip()
+    if self.Connections.RenderStepped then return end
+    
+    self.Connections.RenderStepped = RunService.RenderStepped:Connect(function()
+        if not self.Enabled then return end
+        
+        local character = player.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+-- Método 4: Velocity Override
+function NoclipV3:VelocityOverride()
+    if self.Connections.Velocity then return end
+    
+    self.Connections.Velocity = RunService.Heartbeat:Connect(function()
+        if not self.Enabled then return end
+        
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local hrp = character.HumanoidRootPart
+            hrp.Velocity = Vector3.new(0, 0, 0)
+            hrp.RotVelocity = Vector3.new(0, 0, 0)
+        end
+    end)
+end
+
+-- Método 5: Collision Group Override
+function NoclipV3:CollisionGroupOverride()
+    local PhysicsService = game:GetService("PhysicsService")
+    
+    -- Criar grupo de colisão customizado
+    pcall(function()
+        PhysicsService:CreateCollisionGroup("VixNoclip")
+    end)
+    
+    pcall(function()
+        PhysicsService:CollisionGroupSetCollidable("VixNoclip", "Default", false)
+    end)
+    
+    local character = player.Character
+    if character then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                pcall(function()
+                    PhysicsService:SetPartCollisionGroup(part, "VixNoclip")
+                end)
+            end
+        end
+    end
+end
+
+-- Toggle principal que ativa TODOS os métodos (V3 Ultimate)
 function NoclipV3:Toggle(enabled)
     self.Enabled = enabled
     
     if enabled then
-        self.Connection = RunService.Stepped:Connect(function()
-            if not self.Enabled then return end
-            
-            local character = player.Character
-            if character then
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
-                        part.CanCollide = false
-                    end
+        -- Ativar TODOS os métodos de Noclip simultaneamente
+        self:SteppedNoclip()
+        self:HeartbeatNoclip()
+        self:RenderSteppedNoclip()
+        self:VelocityOverride()
+        self:CollisionGroupOverride()
+        
+        -- Monitorar novos parts adicionados
+        if player.Character then
+            self.Connections.ChildAdded = player.Character.DescendantAdded:Connect(function(descendant)
+                if descendant:IsA("BasePart") and self.Enabled then
+                    descendant.CanCollide = false
                 end
-            end
-        end)
-    else
-        if self.Connection then
-            self.Connection:Disconnect()
-            self.Connection = nil
+            end)
         end
         
+        print("[VixDW] Noclip V3 Ultimate ATIVADO - Todos os métodos rodando!")
+    else
+        -- Desconectar todos os métodos
+        for name, connection in pairs(self.Connections) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+        self.Connections = {}
+        
+        -- Restaurar colisões
         local character = player.Character
         if character then
             for _, part in pairs(character:GetDescendants()) do
@@ -468,6 +573,20 @@ function NoclipV3:Toggle(enabled)
                 end
             end
         end
+        
+        -- Restaurar collision group
+        local PhysicsService = game:GetService("PhysicsService")
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(function()
+                        PhysicsService:SetPartCollisionGroup(part, "Default")
+                    end)
+                end
+            end
+        end
+        
+        print("[VixDW] Noclip V3 Ultimate DESATIVADO")
     end
 end
 
@@ -744,10 +863,40 @@ playerTab.MouseButton1Click:Connect(function()
         VixUI:Notify("Speed", enabled and "Speed ativado!" or "Speed desativado!", 2)
     end)
     
-    VixUI:CreateToggle("Noclip V3", false, function(enabled)
+    VixUI:CreateToggle("Noclip V3 Ultimate", false, function(enabled)
         _G.VixNoclip = enabled
         NoclipV3:Toggle(enabled)
-        VixUI:Notify("Noclip", enabled and "Noclip V3 ativado!" or "Noclip V3 desativado!", 2)
+        
+        -- Efeito visual de glow quando ativo
+        if enabled then
+            local glow = Instance.new("ImageLabel")
+            glow.Name = "NoclipGlow"
+            glow.BorderSizePixel = 0
+            glow.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            glow.ImageTransparency = 0.72
+            glow.Image = "rbxassetid://81233704918247"
+            glow.Size = UDim2.new(0, 391, 0, 172)
+            glow.BackgroundTransparency = 1
+            glow.Position = UDim2.new(0.5, -195, 0.5, -86)
+            glow.Parent = VixUI.MainFrame
+            
+            -- Animar o glow
+            spawn(function()
+                while _G.VixNoclip do
+                    TweenService:Create(glow, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+                        ImageTransparency = 0.9
+                    }):Play()
+                    task.wait(1.5)
+                end
+                glow:Destroy()
+            end)
+            
+            VixUI:Notify("Noclip V3", "ULTIMATE NOCLIP ATIVADO! Atravesse tudo!", 3)
+        else
+            local glow = VixUI.MainFrame:FindFirstChild("NoclipGlow")
+            if glow then glow:Destroy() end
+            VixUI:Notify("Noclip V3", "Noclip V3 desativado!", 2)
+        end
     end)
     
     VixUI:CreateToggle("Infinite Stamina", false, function(enabled)
